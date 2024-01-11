@@ -1,10 +1,8 @@
 import os
 import time
 import asyncio
-
 from kasa import SmartStrip
-from prometheus_client import start_http_server, Summary, Gauge, Counter, push_to_gateway, CollectorRegistry
-from prometheus_client.exposition import basic_auth_handler, tls_auth_handler
+from prometheus_client import start_http_server, Summary, Gauge
 
 heater_running_gauge = Gauge('heater_running', 'Heater Running')
 heater_power_gauge = Gauge('heater_power', 'Heater Power Usage')

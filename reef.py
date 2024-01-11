@@ -7,14 +7,18 @@ import smbus2
 import digitalio
 from PIL import Image, ImageDraw, ImageFont
 import RPi.GPIO as GPIO
-from prometheus_client import start_http_server, Summary, Gauge
-from prometheus_client.exposition import basic_auth_handler, tls_auth_handler
+from prometheus_client import start_http_server, Gauge
+#from prometheus_client.exposition import basic_auth_handler, tls_auth_handler
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 from adafruit_extended_bus import ExtendedI2C as I2C
-import adafruit_bmp280
+from adafruit_bme280 import basic as adafruit_bme280
+#import adafruit_bmp280
 import adafruit_tsl2591
 from fonts.ttf import RobotoLight as UserFont
+from AtlasI2C import (
+         AtlasI2C
+)
 
 #Water level sensor setup
 GPIO.setmode(GPIO.BCM)
@@ -26,18 +30,22 @@ GPIO.setup(ato_pin, GPIO.IN)
 
 # Initialize the I2C interface(s)
 #i2c-4 for ads1115 adc
-i2c4 = I2C(4)
-ads = ADS.ADS1115(i2c4)
-channel0 = AnalogIn(ads, ADS.P0)
+#i2c4 = I2C(4)
+#ads = ADS.ADS1115(i2c1)
+#channel0 = AnalogIn(ads, ADS.P0)
 # Main i2c
 i2c1 = busio.I2C(board.SCL, board.SDA)
+ads = ADS.ADS1115(i2c1)
+channel0 = AnalogIn(ads, ADS.P0)
 #mcp = adafruit_mcp9808.MCP9808(i2c1)
-bme280 = adafruit_bmp280.Adafruit_BMP280_I2C(i2c1)
+bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c1, address=0x76)
+bme280.sea_level_pressure = 1013.25
+
 lux_sensor = adafruit_tsl2591.TSL2591(i2c1)
 
 # OLED Stuff
 WIDTH = 128
-HEIGHT = 64  # Change to 64 if needed
+HEIGHT = 32  # Change to 64 if needed
 BORDER = 5
 from luma.core.interface.serial import i2c
 from luma.core.interface.parallel import bitbang_6800
@@ -46,12 +54,10 @@ from luma.oled.device import sh1106
 serial = i2c(port=1, address=0x3C)
 oled = sh1106(serial)
 
-font_size = 18 
+font_size = 24 
 font = ImageFont.truetype(UserFont, font_size)
 
 # Prometheus config
-registry = CollectorRegistry()
-
 amb_temp_gauge = Gauge('ambient_temp', 'Ambient Temperature')#, registry=registry)
 humidity_gauge = Gauge('humidity_temp', 'Humidity')#, registry=registry)
 lux_gauge = Gauge('lux', 'Light')#, registry=registry)
@@ -67,7 +73,9 @@ os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
 
 temp_probes = ["/sys/bus/w1/devices/28-3ce1d4433a17/w1_slave",
-               "/sys/bus/w1/devices/28-3ce1d443ede3/w1_slave"]
+               "/sys/bus/w1/devices/28-00000014f1fd/w1_slave"]
+
+#temp_probes = ["/sys/bus/w1/devices/28-00000014f1fd/w1_slave"]
 
 #i2c config
 # BME280 sensor address (default address)
@@ -76,10 +84,10 @@ bme280_address = 0x76
 tds_address = 0x40
 
 # Load calibration parameters
-try:
-    calibration_params = bme280.load_calibration_params(bus, bme280_address)
-except:
-    print("prod with bme280")
+#try:
+#    calibration_params = bme280.load_calibration_params(bus, bme280_address)
+#except:
+#    print("prod with bme280")
 
 temp_history = []
 
@@ -114,13 +122,15 @@ def read_water_temp():
             print("popping")
             temp_history.pop(0)
         temp_history.append(temp_f)
-    return results        
+    return results
 
 def read_ambient_temp():
     # Print the readings
     print("Ambient Temperature: {:.0f} °F".format(celsius_to_fahrenheit(bme280.temperature)))
     print("Pressure: {:.2f} hPa".format(bme280.pressure))
+    print("Humidity: {:.2f} %".format(bme280.relative_humidity))
 
+    humidity_gauge.set(bme280.relative_humidity)
     amb_temp_gauge.set(celsius_to_fahrenheit(bme280.temperature))
     #humidity_gauge.set(bme280.humidity)
     return celsius_to_fahrenheit(bme280.temperature)
@@ -164,22 +174,25 @@ def draw_graph(variable, probe_1, probe_2, amb, ppm):
     shape = []
 #    data = data[-160:]
     with canvas(oled) as draw:
-        draw.text((10, 10), header, font=font, fill="white")
-        draw.text((10, 26), message, font=font, fill="white")
-        draw.text((10, 42), message1, font=font, fill="white")
+    #    draw.text((10, 10), header, font=font, fill="white")
+        draw.text((10, 1), message, font=font, fill="white")
+        draw.text((10, 26), message1, font=font, fill="white")
 
-def my_auth_handler(url, method, timeout, headers, data):
-    username = '1355835'
-    password = 'glc_eyJvIjoiMzc5MDI4IiwibiI6InN0YWNrLTgyMzI3OS1obS13cml0ZS1yZWVmIiwiayI6Ilg5N1FseE1rTzA4ODJ1U2I4QWNwOEE0NiIsIm0iOnsiciI6InByb2QtdXMtZWFzdC0wIn19'
-    return basic_auth_handler(url, method, timeout, headers, data, username, password)
+#def my_auth_handler(url, method, timeout, headers, data):
+#    username = '1355835'
+#    password = 'glc_eyJvIjoiMzc5MDI4IiwibiI6InN0YWNrLTgyMzI3OS1obS13cml0ZS1yZWVmIiwiayI6Ilg5N1FseE1rTzA4ODJ1U2I4QWNwOEE0NiIsIm0iOnsiciI6InByb2QtdXMtZWFzdC0wIn19'
+#    return basic_auth_handler(url, method, timeout, headers, data, username, password)
 
 def read_sensors():
-    (probe_1, probe_2) = read_water_temp()
+    temp_results = read_water_temp()
     ambient_temp = read_ambient_temp()
-    ppm = read_tds()
+    try:
+        ppm = read_tds()
+    except:
+        ppm = 0
     water_level = check_water_level()
     lux = read_tsl2591()
-    draw_graph("Temp", probe_1, probe_2, ambient_temp, ppm)   
+    draw_graph("Temp", temp_results[0], temp_results[1], ambient_temp, ppm)   
 
 if __name__ == '__main__':
     start_http_server(8000)

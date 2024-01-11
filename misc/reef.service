@@ -1,0 +1,10 @@
+[Unit]
+Description=Reef Watcher
+After=network.target
+
+[Service]
+User=pi
+#Environment="DISPLAY=:0"
+#Environment="XAUTHORITY=/home/pi/.Xauthority"
+
+ExecStart=python /home/pi/reefwatcher/reef.py

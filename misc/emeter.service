@@ -1,0 +1,7 @@
+[Unit]
+Description=Emeter
+After=network.target
+
+[Service]
+User=pi
+ExecStart=python /home/pi/reefwatcher/emeter.py

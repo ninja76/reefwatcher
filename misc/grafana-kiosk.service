@@ -1,0 +1,21 @@
+[Unit]
+Description=Grafana Kiosk
+Documentation=https://github.com/grafana/grafana-kiosk
+Documentation=https://grafana.com/blog/2019/05/02/grafana-tutorial-how-to-create-kiosks-to-display-dashboards-on-a-tv
+After=network.target
+
+[Service]
+User=pi
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/pi/.Xauthority"
+
+# Disable screensaver and monitor standby
+ExecStartPre=/bin/sleep 60
+ExecStartPre=xset s off
+ExecStartPre=xset -dpms
+ExecStartPre=xset s noblank
+ExecStart=/usr/bin/grafana-kiosk -URL=https://ninja76.grafana.net/d/f83cc28a-f417-4ec7-935b-957cc1bc8edc/reef-watcher?orgId=1 -login-method apikey --apikey "glsa_qdOfioH62aaZCGh9DtiToTdoRT7FtcC0_19ad80eb" -kiosk-mode=full
+
+[Install]
+WantedBy=graphical.target
+
