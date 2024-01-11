@@ -178,11 +178,6 @@ def draw_graph(variable, probe_1, probe_2, amb, ppm):
         draw.text((10, 1), message, font=font, fill="white")
         draw.text((10, 26), message1, font=font, fill="white")
 
-#def my_auth_handler(url, method, timeout, headers, data):
-#    username = '1355835'
-#    password = 'glc_eyJvIjoiMzc5MDI4IiwibiI6InN0YWNrLTgyMzI3OS1obS13cml0ZS1yZWVmIiwiayI6Ilg5N1FseE1rTzA4ODJ1U2I4QWNwOEE0NiIsIm0iOnsiciI6InByb2QtdXMtZWFzdC0wIn19'
-#    return basic_auth_handler(url, method, timeout, headers, data, username, password)
-
 def read_sensors():
     temp_results = read_water_temp()
     ambient_temp = read_ambient_temp()
