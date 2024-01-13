@@ -4,7 +4,6 @@ After=network.target
 
 [Service]
 User=pi
-#Environment="DISPLAY=:0"
-#Environment="XAUTHORITY=/home/pi/.Xauthority"
-
+Restart=always
+RestartSec=15s
 ExecStart=python /home/pi/reefwatcher/reef.py

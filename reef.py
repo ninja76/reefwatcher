@@ -116,10 +116,6 @@ def read_water_temp():
                 water_temp_gauge.set(temp_f)
             else:
                 water2_temp_gauge.set(temp_f)
-        if len(temp_history) > 160:    
-            print("popping")
-            temp_history.pop(0)
-        temp_history.append(temp_f)
     return results
 
 def read_ambient_temp():
@@ -223,6 +219,9 @@ if __name__ == '__main__':
             read_sensors()
         except:
             print("Problem with read_sensors")
+        try:
+            read_power() 
+        except:
+            print("Problem with emeter")
 
-        read_power() 
-        time.sleep(5)
+        time.sleep(30)

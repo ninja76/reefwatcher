@@ -1,0 +1,9 @@
+[Unit]
+Description=Grafana Agent 
+After=network.target
+
+[Service]
+User=pi
+Restart=always
+RestartSec=10s
+ExecStart=/usr/bin/grafana-agent -config.file /home/pi/agent.yaml 

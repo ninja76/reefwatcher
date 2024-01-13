@@ -2,7 +2,7 @@ metrics:
   configs:
     - name: agent
       scrape_configs:
-        - job_name: reef 
+        - job_name: agent 
           static_configs:
             - targets: ['127.0.0.1:8000']
             - targets: ['127.0.0.1:9100']
@@ -10,4 +10,4 @@ metrics:
         - url: https://prometheus-prod-13-prod-us-east-0.grafana.net/api/prom/push
           basic_auth:
             username: 1355835
-            password: glsa_A3ec0eytMNLyEmG4QvHPk89tecQPWvvl_560b30f8
+            password: glc_eyJvIjoiMzc5MDI4IiwibiI6InN0YWNrLTgyMzI3OS1obS13cml0ZS1yZWVmMiIsImsiOiJmMTdINjNmYzFiQUxQazJUMmJjMjhiN0siLCJtIjp7InIiOiJwcm9kLXVzLWVhc3QtMCJ9fQ== 
