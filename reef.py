@@ -13,9 +13,10 @@ import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 from adafruit_extended_bus import ExtendedI2C as I2C
 from adafruit_bme280 import basic as adafruit_bme280
-#import adafruit_bmp280
 import adafruit_tsl2591
 from fonts.ttf import RobotoLight as UserFont
+import asyncio
+from kasa import SmartStrip
 from AtlasI2C import (
          AtlasI2C
 )
@@ -68,28 +69,25 @@ water2_temp_gauge = Gauge('water_2_temp', 'Water Temperature 2')#, registry=regi
 tds_gauge = Gauge('water_tds', 'TDS ppm')#, registry=registry)
 water_level_gauge = Gauge('water_level', 'Water level')#, registry=registry)
 ato_water_level_gauge = Gauge('ato_water_level', 'ATO Water level')#, registry=registry)
- 
+ph_gauge = Gauge('ph_level', 'PH Level')
+heater_running_gauge = Gauge('heater_running', 'Heater Running')
+heater_power_gauge = Gauge('heater_power', 'Heater Power Usage')
+return_power_gauge = Gauge('return_power', 'Return Pump Power Usage')
+ato_power_gauge = Gauge('ato_power', 'ATO Pump Power Usage')
+led_power_gauge = Gauge('led_power', 'LED Power Usage')
+wave_power_gauge = Gauge('wave_power', 'Wave Maker Power Usage')
+pi_power_gauge = Gauge('pi_power', 'RPI Power Usage')
+total_power_gauge = Gauge('total_power', 'Total Power Usage')
+
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
 
 temp_probes = ["/sys/bus/w1/devices/28-3ce1d4433a17/w1_slave",
                "/sys/bus/w1/devices/28-00000014f1fd/w1_slave"]
 
-#temp_probes = ["/sys/bus/w1/devices/28-00000014f1fd/w1_slave"]
-
 #i2c config
-# BME280 sensor address (default address)
 bme280_address = 0x76
-# TDS sensor address
 tds_address = 0x40
-
-# Load calibration parameters
-#try:
-#    calibration_params = bme280.load_calibration_params(bus, bme280_address)
-#except:
-#    print("prod with bme280")
-
-temp_history = []
 
 def celsius_to_fahrenheit(celsius):
     return (celsius * 9/5) + 32
@@ -189,6 +187,31 @@ def read_sensors():
     lux = read_tsl2591()
     draw_graph("Temp", temp_results[0], temp_results[1], ambient_temp, ppm)   
 
+def read_power():
+    dev = SmartStrip("192.168.0.42")  # We create the instance inside the main loop
+    asyncio.run(dev.update())
+    for plug in dev.children:
+        if plug.alias == "Heater":
+            heater_power_gauge.set(plug.emeter_realtime['power'])
+            if plug.emeter_realtime['power'] > 0:
+                heater_running_gauge.set(1)
+            else:
+                heater_running_gauge.set(0)
+        elif plug.alias == "Return pump":
+            return_power_gauge.set(plug.emeter_realtime['power'])
+        elif plug.alias == "ATO pump":
+            ato_power_gauge.set(plug.emeter_realtime['power'])
+        elif plug.alias == "Wavemaker":
+            wave_power_gauge.set(plug.emeter_realtime['power'])
+        elif plug.alias == "Reefwatcher":
+            pi_power_gauge.set(plug.emeter_realtime['power'])
+        elif plug.alias == "Led":
+            led_power_gauge.set(plug.emeter_realtime['power'])
+        print(f"{plug.alias} {plug.emeter_realtime['power']}")
+
+    print(f"{dev.emeter_realtime['total']}")
+    total_power_gauge.set(dev.emeter_realtime['total']) 
+
 if __name__ == '__main__':
     start_http_server(8000)
     image = Image.new("1", (oled.width, oled.height))
@@ -200,4 +223,6 @@ if __name__ == '__main__':
             read_sensors()
         except:
             print("Problem with read_sensors")
+
+        read_power() 
         time.sleep(5)
