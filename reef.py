@@ -21,6 +21,10 @@ from AtlasI2C import (
          AtlasI2C
 )
 
+#PH probe config
+device = AtlasI2C()
+device_address_list = device.list_i2c_devices()
+
 #Water level sensor setup
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.IN)
@@ -88,6 +92,13 @@ temp_probes = ["/sys/bus/w1/devices/28-3ce1d4433a17/w1_slave",
 #i2c config
 bme280_address = 0x76
 tds_address = 0x40
+
+def get_ph():
+    device.set_i2c_address(98)
+    response = device.query("R")
+    v =	response.split(':')[1].split('  ')[0].split('\x00')[0]
+    print(float(v))
+    ph_gauge.set(float(v))
 
 def celsius_to_fahrenheit(celsius):
     return (celsius * 9/5) + 32
@@ -214,9 +225,11 @@ if __name__ == '__main__':
     font = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 12)
     font_small = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 10)
 
+    get_ph()
     while True:
         try:
             read_sensors()
+            get_ph()
         except:
             print("Problem with read_sensors")
         try:
