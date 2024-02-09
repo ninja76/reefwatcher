@@ -29,24 +29,18 @@ device_address_list = device.list_i2c_devices()
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.IN)
 
-ato_pin = 11
+ato_pin = 21 
 #ATO float switch
 GPIO.setup(ato_pin, GPIO.IN)
 
 # Initialize the I2C interface(s)
-#i2c-4 for ads1115 adc
-#i2c4 = I2C(4)
+i2c1 = busio.I2C(board.SCL, board.SDA)
 #ads = ADS.ADS1115(i2c1)
 #channel0 = AnalogIn(ads, ADS.P0)
-# Main i2c
-i2c1 = busio.I2C(board.SCL, board.SDA)
-ads = ADS.ADS1115(i2c1)
-channel0 = AnalogIn(ads, ADS.P0)
-#mcp = adafruit_mcp9808.MCP9808(i2c1)
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c1, address=0x76)
 bme280.sea_level_pressure = 1013.25
 
-lux_sensor = adafruit_tsl2591.TSL2591(i2c1)
+#$lux_sensor = adafruit_tsl2591.TSL2591(i2c1)
 
 # OLED Stuff
 WIDTH = 128
@@ -56,8 +50,8 @@ from luma.core.interface.serial import i2c
 from luma.core.interface.parallel import bitbang_6800
 from luma.core.render import canvas
 from luma.oled.device import sh1106
-serial = i2c(port=1, address=0x3C)
-oled = sh1106(serial)
+#serial = i2c(port=1, address=0x3C)
+#oled = sh1106(serial)
 
 font_size = 24 
 font = ImageFont.truetype(UserFont, font_size)
@@ -89,6 +83,8 @@ os.system('modprobe w1-therm')
 temp_probes = ["/sys/bus/w1/devices/28-3ce1d4433a17/w1_slave",
                "/sys/bus/w1/devices/28-00000014f1fd/w1_slave"]
 
+#temp_probes = ["/sys/bus/w1/devices/28-20000014f1fd/w1_slave"]
+
 #i2c config
 bme280_address = 0x76
 tds_address = 0x40
@@ -99,6 +95,7 @@ def get_ph():
     v =	response.split(':')[1].split('  ')[0].split('\x00')[0]
     print(float(v))
     ph_gauge.set(float(v))
+    return float(v)
 
 def celsius_to_fahrenheit(celsius):
     return (celsius * 9/5) + 32
@@ -140,18 +137,6 @@ def read_ambient_temp():
     #humidity_gauge.set(bme280.humidity)
     return celsius_to_fahrenheit(bme280.temperature)
 
-def read_tds():
-    voltage = channel0.voltage 
-    tds_value = (133.42/voltage*voltage*voltage-255.86*voltage*voltage+857.39*voltage)*0.5
-    print("Water quality: {:.2f} ppm".format(tds_value))
-    tds_gauge.set(tds_value)
-    return tds_value
-
-def read_mcp9808():
-    print('Ambient Temperature: {} degrees C'.format(celsius_to_fahrenheit(mcp.temperature))) 
-    amb_temp_gauge.set(celsius_to_fahrenheit(mcp.temperature))
-    return celsius_to_fahrenheit(mcp.temperature)
-
 def check_water_level():
     is_okay = GPIO.input(21)
     ato_is_okay = GPIO.input(ato_pin)
@@ -170,29 +155,33 @@ def read_tsl2591():
     visible_gauge.set("{:.0f}".format(lux_sensor.visible))
     return lux_sensor.lux
 
-def draw_graph(variable, probe_1, probe_2, amb, ppm):
-    header = "Temp 1/2"
-    message = "{:.0f}°F/{:.0f}°F".format(probe_1, probe_2)
-    message1 = "Quality {:.1f}ppm".format(ppm)
-    HEIGHT = 64
-    WIDTH = 128
-    shape = []
-#    data = data[-160:]
-    with canvas(oled) as draw:
-    #    draw.text((10, 10), header, font=font, fill="white")
-        draw.text((10, 1), message, font=font, fill="white")
-        draw.text((10, 26), message1, font=font, fill="white")
+def update_display(probe_1, probe_2, ph, power):
+    line  = "Tank:  {:.0f}°F/{:.0f}°F".format(probe_1, probe_2)
+    line1 = "PH:    {:.1f}".format(ph)
+    line2 = "Power: {:.1f}kwh".format(power)
+    line3 = "ATO:   {}".format("OK")
+
+#    with canvas(oled) as draw:
+#        draw.text((1, 1), line, font=font, fill="white")
+#        draw.text((1, 16), line1, font=font, fill="white")
+#        draw.text((1, 31), line2, font=font, fill="white")
 
 def read_sensors():
-    temp_results = read_water_temp()
-    ambient_temp = read_ambient_temp()
     try:
-        ppm = read_tds()
+        temp_results = read_water_temp()
     except:
-        ppm = 0
+        print("404")
+    ambient_temp = read_ambient_temp()
+    ph = get_ph()
     water_level = check_water_level()
-    lux = read_tsl2591()
-    draw_graph("Temp", temp_results[0], temp_results[1], ambient_temp, ppm)   
+#    lux = read_tsl2591()
+    try:
+        power = read_power()
+    except:
+        power = -1
+    print(ph)
+    print(power)
+    #update_display(temp_results[0], temp_results[1], ph, power)   
 
 def read_power():
     dev = SmartStrip("192.168.0.42")  # We create the instance inside the main loop
@@ -218,23 +207,17 @@ def read_power():
 
     print(f"{dev.emeter_realtime['total']}")
     total_power_gauge.set(dev.emeter_realtime['total']) 
+    return plug.emeter_realtime['power']
 
 if __name__ == '__main__':
     start_http_server(8000)
-    image = Image.new("1", (oled.width, oled.height))
-    font = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 12)
-    font_small = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 10)
+#    image = Image.new("1", (oled.width, oled.height))
+#    font = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 12)
+#    font_small = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 10)
 
-    get_ph()
     while True:
         try:
             read_sensors()
-            get_ph()
         except:
             print("Problem with read_sensors")
-        try:
-            read_power() 
-        except:
-            print("Problem with emeter")
-
         time.sleep(30)
