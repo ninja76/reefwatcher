@@ -136,7 +136,7 @@ def read_sensors():
     try:
         temp_results = read_water_temp()
     except:
-        print("404")
+        print("404 Probe not found")
     ambient_temp = read_ambient_temp()
     ph = get_ph()
     water_level = check_water_level()
