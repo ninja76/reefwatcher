@@ -5,16 +5,11 @@ import busio
 import time
 import smbus2
 import digitalio
-from PIL import Image, ImageDraw, ImageFont
 import RPi.GPIO as GPIO
 from prometheus_client import start_http_server, Gauge
-#from prometheus_client.exposition import basic_auth_handler, tls_auth_handler
-import adafruit_ads1x15.ads1115 as ADS
-from adafruit_ads1x15.analog_in import AnalogIn
 from adafruit_extended_bus import ExtendedI2C as I2C
 from adafruit_bme280 import basic as adafruit_bme280
 import adafruit_tsl2591
-from fonts.ttf import RobotoLight as UserFont
 import asyncio
 from kasa import SmartStrip
 from AtlasI2C import (
@@ -29,34 +24,17 @@ device_address_list = device.list_i2c_devices()
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.IN)
 
-ato_pin = 21 
 #ATO float switch
+ato_pin = 21
 GPIO.setup(ato_pin, GPIO.IN)
 
 # Initialize the I2C interface(s)
 i2c1 = busio.I2C(board.SCL, board.SDA)
-#ads = ADS.ADS1115(i2c1)
-#channel0 = AnalogIn(ads, ADS.P0)
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c1, address=0x76)
 bme280.sea_level_pressure = 1013.25
 
-#$lux_sensor = adafruit_tsl2591.TSL2591(i2c1)
-
-# OLED Stuff
-WIDTH = 128
-HEIGHT = 32  # Change to 64 if needed
-BORDER = 5
-from luma.core.interface.serial import i2c
-from luma.core.interface.parallel import bitbang_6800
-from luma.core.render import canvas
-from luma.oled.device import sh1106
-#serial = i2c(port=1, address=0x3C)
-#oled = sh1106(serial)
-
-font_size = 24 
-font = ImageFont.truetype(UserFont, font_size)
-
-# Prometheus config
+## Prometheus config
+## Setup gauges for metrics
 amb_temp_gauge = Gauge('ambient_temp', 'Ambient Temperature')#, registry=registry)
 humidity_gauge = Gauge('humidity_temp', 'Humidity')#, registry=registry)
 lux_gauge = Gauge('lux', 'Light')#, registry=registry)
@@ -77,13 +55,12 @@ wave_power_gauge = Gauge('wave_power', 'Wave Maker Power Usage')
 pi_power_gauge = Gauge('pi_power', 'RPI Power Usage')
 total_power_gauge = Gauge('total_power', 'Total Power Usage')
 
+
+## 1Wire temp probes config
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
-
 temp_probes = ["/sys/bus/w1/devices/28-3ce1d4433a17/w1_slave",
                "/sys/bus/w1/devices/28-00000014f1fd/w1_slave"]
-
-#temp_probes = ["/sys/bus/w1/devices/28-20000014f1fd/w1_slave"]
 
 #i2c config
 bme280_address = 0x76
@@ -155,17 +132,6 @@ def read_tsl2591():
     visible_gauge.set("{:.0f}".format(lux_sensor.visible))
     return lux_sensor.lux
 
-def update_display(probe_1, probe_2, ph, power):
-    line  = "Tank:  {:.0f}°F/{:.0f}°F".format(probe_1, probe_2)
-    line1 = "PH:    {:.1f}".format(ph)
-    line2 = "Power: {:.1f}kwh".format(power)
-    line3 = "ATO:   {}".format("OK")
-
-#    with canvas(oled) as draw:
-#        draw.text((1, 1), line, font=font, fill="white")
-#        draw.text((1, 16), line1, font=font, fill="white")
-#        draw.text((1, 31), line2, font=font, fill="white")
-
 def read_sensors():
     try:
         temp_results = read_water_temp()
@@ -181,7 +147,6 @@ def read_sensors():
         power = -1
     print(ph)
     print(power)
-    #update_display(temp_results[0], temp_results[1], ph, power)   
 
 def read_power():
     dev = SmartStrip("192.168.0.42")  # We create the instance inside the main loop
@@ -211,10 +176,6 @@ def read_power():
 
 if __name__ == '__main__':
     start_http_server(8000)
-#    image = Image.new("1", (oled.width, oled.height))
-#    font = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 12)
-#    font_small = ImageFont.truetype('/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf', 10)
-
     while True:
         try:
             read_sensors()
